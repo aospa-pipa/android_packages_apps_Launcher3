@@ -74,6 +74,7 @@ import com.android.launcher3.deviceprofile.DeviceProperties;
 import com.android.launcher3.graphics.ThemeManager;
 import com.android.launcher3.graphics.TintedDrawableSpan;
 import com.android.launcher3.testing.shared.ResourceUtils;
+import com.android.launcher3.util.DerpFestUtils;
 import com.android.launcher3.util.IntArray;
 import com.android.launcher3.util.SplitConfigurationOptions.SplitPositionOption;
 import com.android.launcher3.views.BaseDragLayer;
@@ -980,5 +981,9 @@ public final class Utilities {
     public static boolean showAllappsSuggestions(Context context) {
         SharedPreferences prefs = LauncherPrefs.getPrefs(context.getApplicationContext());
         return prefs.getBoolean(KEY_ALLAPPS_SUGGESTIONS, true);
+    }
+
+    public static boolean isGSAEnabled(Context context) {
+        return DerpFestUtils.isPackageEnabled(context, GSA_PACKAGE);
     }
 }
