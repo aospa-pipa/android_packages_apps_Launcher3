@@ -82,6 +82,8 @@ public class SettingsActivity extends CollapsingToolbarBaseActivity
     static final String DEVELOPER_OPTIONS_KEY = "pref_developer_options";
 
     public static final String FIXED_LANDSCAPE_MODE = "pref_fixed_landscape_mode";
+    public static final String SHOW_AT_A_GLANCE_PREFERENCE_KEY = "pref_show_at_a_glance";
+    public static final String SHOW_SEARCH_BAR_PREFERENCE_KEY = "pref_show_search_bar";
 
     private static final String NOTIFICATION_DOTS_PREFERENCE_KEY = "pref_icon_badging";
 

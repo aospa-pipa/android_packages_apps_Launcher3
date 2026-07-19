@@ -90,4 +90,10 @@
     <string name="first_page_pinned_item_title">At a Glance</string>
     <string name="first_page_pinned_item_subtitle">Companion widget will appear here</string>
 
+    <!-- At a Glance / search bar -->
+    <string name="pref_show_at_a_glance_title">Show At a Glance</string>
+    <string name="pref_show_at_a_glance_summary">Show the status widget at the top of the first home screen</string>
+    <string name="pref_show_search_bar_title">Show search bar</string>
+    <string name="pref_show_search_bar_summary">Show the Google search bar in the hotseat</string>
+
 </resources>
