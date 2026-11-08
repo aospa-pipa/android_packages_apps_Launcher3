@@ -27,9 +27,6 @@
     <string name="settings_lock_layout_summary_off">Icons and widgets can be added, removed and moved on the homescreen</string>
     <string name="settings_edit_widgets_error">It\'s not possible to add widgets to the home screen</string>
 
-    <!-- Folder titles -->
-    <string name="google_folder_title" translatable="false">Google</string>
-
     <!-- Font size -->
     <string name="font_size_title">Font size</string>
 
