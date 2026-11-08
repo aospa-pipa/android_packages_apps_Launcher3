@@ -769,10 +769,7 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
             // not inline.
             if (mDeviceProfile.getDeviceProperties().getTaskbarConfiguration().isTaskbarPresent()) {
                 if (!mDeviceProfile.getHotseatProfile().isQsbInline()) {
-                    View qsb = hotseat.getQsb();
-                    if (qsb != null) {
-                        viewsToAnimate.add(qsb);
-                    }
+                    viewsToAnimate.add(hotseat.getQsb());
                 }
             } else {
                 viewsToAnimate.add(hotseat);

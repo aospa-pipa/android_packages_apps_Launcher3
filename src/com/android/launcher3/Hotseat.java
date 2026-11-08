@@ -91,13 +91,13 @@ public class Hotseat extends CellLayout implements Insettable {
     private Workspace<?> mWorkspace;
     private boolean mSendTouchToWorkspace;
     private final MultiValueAlpha mIconsAlphaChannels;
-    private final @Nullable MultiValueAlpha mQsbAlphaChannels;
+    private final MultiValueAlpha mQsbAlphaChannels;
 
     private @Nullable MultiProperty mQsbTranslationX;
 
     private final MultiPropertyFactory mIconsTranslationXFactory;
 
-    private final @Nullable View mQsb;
+    private final View mQsb;
 
     public Hotseat(Context context) {
         this(context, null);
@@ -109,26 +109,20 @@ public class Hotseat extends CellLayout implements Insettable {
 
     public Hotseat(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
+        mQsb = LauncherComponentProvider.get(context).getQsbWidgetFactory().createView(this);
 
-        if (Flags.enableQsbOnHotseat()) {
-            mQsb = LauncherComponentProvider.get(context).getQsbWidgetFactory().createView(this);
-            addView(mQsb);
-            if (mQsb instanceof Reorderable qsbReorderable) {
-                mQsbTranslationX = qsbReorderable.getTranslateDelegate()
-                        .getTranslationX(MultiTranslateDelegate.INDEX_NAV_BAR_ANIM);
-            }
-            mQsbAlphaChannels = new MultiValueAlpha(mQsb, ALPHA_CHANNEL_CHANNELS_COUNT);
-            mQsbAlphaChannels.setUpdateVisibility(true);
-        } else {
-            mQsb = null;
-            mQsbAlphaChannels = null;
-        }
-
+        addView(mQsb);
         mIconsAlphaChannels = new MultiValueAlpha(getShortcutsAndWidgets(),
                 ALPHA_CHANNEL_CHANNELS_COUNT);
         mIconsAlphaChannels.setUpdateVisibility(true);
+        if (mQsb instanceof Reorderable qsbReorderable) {
+            mQsbTranslationX = qsbReorderable.getTranslateDelegate()
+                    .getTranslationX(MultiTranslateDelegate.INDEX_NAV_BAR_ANIM);
+        }
         mIconsTranslationXFactory = new MultiPropertyFactory<>(getShortcutsAndWidgets(),
                 VIEW_TRANSLATE_X, ICONS_TRANSLATION_X_CHANNELS_COUNT, Float::sum);
+        mQsbAlphaChannels = new MultiValueAlpha(mQsb, ALPHA_CHANNEL_CHANNELS_COUNT);
+        mQsbAlphaChannels.setUpdateVisibility(true);
     }
 
     /** Provides translation X for hotseat icons for the channel. */
@@ -275,8 +269,9 @@ public class Hotseat extends CellLayout implements Insettable {
         FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) getLayoutParams();
         DeviceProfile grid = mActivity.getDeviceProfile();
 
+        int topOverlap = 0;
         if (grid.isVerticalBarLayout()) {
-            if (mQsb != null) mQsb.setVisibility(View.GONE);
+            mQsb.setVisibility(View.GONE);
             lp.height = ViewGroup.LayoutParams.MATCH_PARENT;
             if (grid.isSeascape()) {
                 lp.gravity = Gravity.LEFT;
@@ -286,16 +281,20 @@ public class Hotseat extends CellLayout implements Insettable {
                 lp.width = grid.getHotseatProfile().getBarSizePx() + insets.right;
             }
         } else {
-            if (mQsb != null) {
-                mQsb.setVisibility(grid.isHotseatQsbEnabled() ? View.VISIBLE : View.GONE);
-            }
+            mQsb.setVisibility(View.VISIBLE);
             lp.gravity = Gravity.BOTTOM;
             lp.width = ViewGroup.LayoutParams.MATCH_PARENT;
-            lp.height = grid.getHotseatProfile().getBarSizePx();
+
+            // Since QSB is laid out relative to bottom, it expects a certain amount of available
+            // space in its parent (hotseat). If hotseatBarSizePx is less than that, we let it go
+            // beyond and offset the content accordingly.
+            int totalHeightForQsb = grid.getQsbOffsetY() + grid.getHotseatProfile().getQsbHeight();
+            topOverlap = Math.max(0, totalHeightForQsb - grid.getHotseatProfile().getBarSizePx());
+            lp.height = grid.getHotseatProfile().getBarSizePx() + topOverlap;
         }
 
         Rect padding = grid.getHotseatLayoutPadding(getContext());
-        setPadding(padding.left, padding.top, padding.right, padding.bottom);
+        setPadding(padding.left, padding.top + topOverlap, padding.right, padding.bottom);
         setLayoutParams(lp);
         InsettableFrameLayout.dispatchInsets(this, insets);
     }
@@ -338,20 +337,16 @@ public class Hotseat extends CellLayout implements Insettable {
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 
-        if (mQsb != null && mQsb.getVisibility() != View.GONE) {
-            DeviceProfile dp = mActivity.getDeviceProfile();
-            mQsb.measure(
-                    makeMeasureSpec(dp.getHotseatQsbWidth(), MeasureSpec.EXACTLY),
-                    makeMeasureSpec(dp.getHotseatProfile().getQsbHeight(), MeasureSpec.EXACTLY)
-            );
-        }
+        DeviceProfile dp = mActivity.getDeviceProfile();
+        mQsb.measure(
+                makeMeasureSpec(dp.getHotseatProfile().getQsbWidth(), MeasureSpec.EXACTLY),
+                makeMeasureSpec(dp.getHotseatProfile().getQsbHeight(), MeasureSpec.EXACTLY)
+        );
     }
 
     @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
         super.onLayout(changed, l, t, r, b);
-
-        if (mQsb == null || mQsb.getVisibility() == View.GONE) return;
 
         int qsbMeasuredWidth = mQsb.getMeasuredWidth();
         int left;
@@ -365,25 +360,9 @@ public class Hotseat extends CellLayout implements Insettable {
         }
         int right = left + qsbMeasuredWidth;
 
-        int height = b - t;
-        int qsbHeight = dp.getHotseatProfile().getQsbHeight();
-        int bottomOffset;
-        int subtraction;
-        if (dp.getHotseatProfile().isQsbInline()) {
-            bottomOffset = dp.getHotseatBarBottomPadding();
-            subtraction = (qsbHeight - dp.getHotseatProfile().getCellHeightPx()) / 2;
-        } else if (dp.getDeviceProperties().getTaskbarConfiguration().isTaskbarPresent()) {
-            int offsetY = (dp.getHotseatProfile().getBarSizePx() - qsbHeight)
-                    + dp.getHotseatProfile().getQsbShadowHeight();
-            int bottom = height - offsetY;
-            mQsb.layout(left, bottom - qsbHeight, right, bottom);
-            return;
-        } else {
-            bottomOffset = dp.getHotseatProfile().getBarBottomSpacePx();
-            subtraction = dp.getHotseatProfile().getQsbShadowHeight();
-        }
-        int bottom = height - (bottomOffset - subtraction);
-        mQsb.layout(left, bottom - qsbHeight, right, bottom);
+        int bottom = b - t - dp.getQsbOffsetY();
+        int top = bottom - dp.getHotseatProfile().getQsbHeight();
+        mQsb.layout(left, top, right, bottom);
     }
 
     /**
@@ -397,10 +376,7 @@ public class Hotseat extends CellLayout implements Insettable {
      * Sets the alpha value of just our QSB.
      */
     public void setQsbAlpha(float alpha, @HotseatQsbAlphaId int channelId) {
-        MultiProperty prop = getQsbAlpha(channelId);
-        if (prop != null) {
-            prop.setValue(alpha);
-        }
+        getQsbAlpha(channelId).setValue(alpha);
     }
 
     /** Returns the alpha channel for ShortcutAndWidgetContainer */
@@ -408,16 +384,14 @@ public class Hotseat extends CellLayout implements Insettable {
         return mIconsAlphaChannels.get(channelId);
     }
 
-    /** Returns the alpha channel for Qsb, or null if QSB is not present */
-    @Nullable
+    /** Returns the alpha channel for Qsb */
     public MultiProperty getQsbAlpha(@HotseatQsbAlphaId int channelId) {
-        return mQsbAlphaChannels != null ? mQsbAlphaChannels.get(channelId) : null;
+        return mQsbAlphaChannels.get(channelId);
     }
 
     /**
-     * Returns the QSB inside hotseat, or null if QSB is not enabled.
+     * Returns the QSB inside hotseat
      */
-    @Nullable
     public View getQsb() {
         return mQsb;
     }
@@ -425,7 +399,8 @@ public class Hotseat extends CellLayout implements Insettable {
     @Nullable
     @Override
     public View mapOverItems(ItemOperator op) {
-        if (mQsb != null && mQsb.getVisibility() != View.GONE
+        if (Flags.enableQsbOnHotseat()
+                && mQsb != null
                 && mQsb.getTag() instanceof ItemInfo info
                 && op.evaluate(info, mQsb)) {
             return mQsb;
@@ -443,16 +418,14 @@ public class Hotseat extends CellLayout implements Insettable {
                 "ALPHA_CHANNEL_TASKBAR_ALIGNMENT",
                 "ALPHA_CHANNEL_PREVIEW_RENDERER",
                 "ALPHA_CHANNEL_TASKBAR_STASH");
-        if (mQsbAlphaChannels != null) {
-            mQsbAlphaChannels.dump(
-                    prefix + "\t",
-                    writer,
-                    "mQsbAlphaChannels",
-                    "ALPHA_CHANNEL_TASKBAR_ALIGNMENT",
-                    "ALPHA_CHANNEL_PREVIEW_RENDERER",
-                    "ALPHA_CHANNEL_TASKBAR_STASH"
-            );
-        }
+        mQsbAlphaChannels.dump(
+                prefix + "\t",
+                writer,
+                "mQsbAlphaChannels",
+                "ALPHA_CHANNEL_TASKBAR_ALIGNMENT",
+                "ALPHA_CHANNEL_PREVIEW_RENDERER",
+                "ALPHA_CHANNEL_TASKBAR_STASH"
+        );
     }
 
     // TODO(b/479881252): Determine whether it still makes sense to disallow all instances of

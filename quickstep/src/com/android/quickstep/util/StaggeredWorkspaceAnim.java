@@ -164,7 +164,7 @@ public class StaggeredWorkspaceAnim {
                         addStaggeredAnimationForView(child, hotseatRow, totalRows, duration);
                     }
                 }
-                if (staggerQsb && hotseat.getQsb() != null) {
+                if (staggerQsb) {
                     addStaggeredAnimationForView(hotseat.getQsb(), qsbRow, totalRows, duration);
                 }
             }
